@@ -1,7 +1,7 @@
 {
   "name": "Mi IPTV FREE",
   "short_name": "IPTV FREE",
-  "description": "Reproductor IPTV con carpetas, portadas y soporte universal",
+  "description": "Reproductor IPTV con soporte Xtream Codes, Archivo Local y M3U",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b0d14",

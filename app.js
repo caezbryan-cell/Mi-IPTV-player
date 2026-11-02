@@ -5,27 +5,72 @@ var hlsPlayer = null;
 
 document.addEventListener("DOMContentLoaded", function () {
     var modal = document.getElementById("modal");
-    var m3uInput = document.getElementById("m3u-url");
-    var loadBtn = document.getElementById("btn-load");
     var changeBtn = document.getElementById("btn-change-m3u");
     var searchInput = document.getElementById("global-search");
     var menuBtn = document.getElementById("btn-menu");
     var sidebar = document.getElementById("sidebar");
     var closeVideoBtn = document.getElementById("btn-close-video");
 
+    var btnLoadXtream = document.getElementById("btn-load-xtream");
+    var btnLoadUrl = document.getElementById("btn-load-url");
+    var fileInput = document.getElementById("m3u-file-input");
+
+    // Verificar si hay datos Xtream guardados
+    var savedXcUrl = localStorage.getItem("iptv_xc_url");
+    var savedXcUser = localStorage.getItem("iptv_xc_user");
+    var savedXcPass = localStorage.getItem("iptv_xc_pass");
+
+    // Verificar si hay URL guardada
     var savedUrl = localStorage.getItem("iptv_m3u_url");
-    if (savedUrl) {
-        m3uInput.value = savedUrl;
+
+    if (savedXcUrl && savedXcUser && savedXcPass) {
+        modal.style.display = "none";
+        loadXtream(savedXcUrl, savedXcUser, savedXcPass);
+    } else if (savedUrl) {
         modal.style.display = "none";
         loadM3U(savedUrl);
     }
 
-    loadBtn.addEventListener("click", function () {
-        var url = m3uInput.value.trim();
+    // Cargar Xtream Codes
+    btnLoadXtream.addEventListener("click", function () {
+        var server = document.getElementById("xc-url").value.trim();
+        var user = document.getElementById("xc-user").value.trim();
+        var pass = document.getElementById("xc-pass").value.trim();
+
+        if (server && user && pass) {
+            localStorage.setItem("iptv_xc_url", server);
+            localStorage.setItem("iptv_xc_user", user);
+            localStorage.setItem("iptv_xc_pass", pass);
+            localStorage.removeItem("iptv_m3u_url");
+
+            modal.style.display = "none";
+            loadXtream(server, user, pass);
+        } else {
+            alert("Por favor completa los campos de Servidor, Usuario y Contraseña.");
+        }
+    });
+
+    // Cargar URL M3U
+    btnLoadUrl.addEventListener("click", function () {
+        var url = document.getElementById("m3u-url").value.trim();
         if (url) {
             localStorage.setItem("iptv_m3u_url", url);
+            localStorage.removeItem("iptv_xc_url");
             modal.style.display = "none";
             loadM3U(url);
+        }
+    });
+
+    // Cargar Archivo Local .m3u
+    fileInput.addEventListener("change", function (e) {
+        var file = e.target.files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function (evt) {
+                modal.style.display = "none";
+                parseM3U(evt.target.result);
+            };
+            reader.readAsText(file);
         }
     });
 
@@ -53,9 +98,19 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+// Función para armar la URL Xtream Codes y solicitar la lista
+function loadXtream(server, user, pass) {
+    var cleanServer = server.replace(/\/$/, "");
+    if (!cleanServer.startsWith("http://") && !cleanServer.startsWith("https://")) {
+        cleanServer = "http://" + cleanServer;
+    }
+    // Generar la URL completa M3U Plus para servidores Xtream
+    var generatedUrl = cleanServer + "/get.php?username=" + user + "&password=" + pass + "&type=m3u_plus&output=ts";
+    loadM3U(generatedUrl);
+}
+
 // Función de carga con compatibilidad directa y respaldo por proxy si es necesario
 function loadM3U(url) {
-    // Intento 1: Carga directa (ideal para listas privadas y de pago que permiten acceso remoto)
     fetch(url)
         .then(function (response) {
             if (!response.ok) throw new Error("Error HTTP directo");
@@ -63,28 +118,27 @@ function loadM3U(url) {
         })
         .then(function (data) {
             if (!data || data.indexOf("#EXTINF") === -1) {
-                throw new Error("Formato M3U no válido en respuesta directa");
+                throw new Error("Formato M3U no válido");
             }
             parseM3U(data);
         })
         .catch(function (err) {
-            console.warn("Carga directa bloqueada o fallida. Intentando vía Proxy CORS...", err);
-            // Intento 2: Respaldo automático mediante proxy si la directa falla por seguridad del navegador
+            console.warn("Intentando vía Proxy de respaldo...", err);
             var proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-            return fetch(proxyUrl)
+            fetch(proxyUrl)
                 .then(function (res) {
                     if (!res.ok) throw new Error("Error en Proxy");
                     return res.text();
                 })
                 .then(function (proxyData) {
-                    if (!proxyData || proxyData.trim().length === 0) {
-                        throw new Error("Respuesta vacía del proxy");
+                    if (!proxyData || proxyData.indexOf("#EXTINF") === -1) {
+                        throw new Error("Proxy devolvió datos no válidos");
                     }
                     parseM3U(proxyData);
                 })
                 .catch(function (finalErr) {
-                    console.error("Todos los métodos de carga fallaron:", finalErr);
-                    alert("No se pudo obtener la lista IPTV. Comprueba que el enlace de tu proveedor sea correcto y esté activo.");
+                    console.error("Carga de lista fallida:", finalErr);
+                    alert("No se pudo cargar la lista por red debido a bloqueos de seguridad. Puedes probar usando la pestaña 'Archivo Local (.m3u)' descargando tu lista previamente.");
                 });
         });
 }
