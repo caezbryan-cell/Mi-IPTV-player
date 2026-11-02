@@ -3,10 +3,14 @@ var categories = {};
 var activeCategory = "TODOS";
 var hlsPlayer = null;
 
+// Lista ampliada de Proxies CORS silenciosos con reintentos automáticos
 const CORS_PROXIES = [
-    "",
+    "", // Intento directo primero (HTTPS/CORS permitido)
     "https://api.allorigins.win/raw?url=",
-    "https://corsproxy.io/?"
+    "https://corsproxy.io/?",
+    "https://proxy.cors.sh/",
+    "https://thingproxy.freeboard.io/fetch/",
+    "https://api.codetabs.com/v1/proxy?quest="
 ];
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -59,24 +63,31 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+// Función con respaldo silencioso (sin alertas molestas al fallar un proxy individual)
 function fetchM3UWithProxy(url, proxyIndex) {
     if (proxyIndex >= CORS_PROXIES.length) {
-        alert("Error: No se pudo obtener la lista IPTV. Verifica que la URL esté activa.");
+        console.error("Todos los proxies de respaldo fallaron.");
+        alert("No se pudo obtener la lista IPTV. Verifica que tu enlace esté activo o prueba cambiar de http:// a https://.");
         return;
     }
 
-    var targetUrl = CORS_PROXIES[proxyIndex] ? CORS_PROXIES[proxyIndex] + encodeURIComponent(url) : url;
-    
+    var proxyPrefix = CORS_PROXIES[proxyIndex];
+    var targetUrl = proxyPrefix ? proxyPrefix + encodeURIComponent(url) : url;
+
     fetch(targetUrl)
-        .then(response => {
-            if (!response.ok) throw new Error("HTTP error " + response.status);
+        .then(function (response) {
+            if (!response.ok) throw new Error("HTTP Status " + response.status);
             return response.text();
         })
-        .then(data => {
+        .then(function (data) {
+            if (!data || data.trim().length === 0) {
+                throw new Error("Respuesta vacía del proxy");
+            }
             parseM3U(data);
         })
-        .catch(err => {
-            console.warn("Proxy index " + proxyIndex + " falló. Intentando el siguiente...", err);
+        .catch(function (err) {
+            console.warn("Proxy (" + (proxyPrefix || "Directo") + ") falló de forma silenciosa. Reintentando con siguiente proxy...", err);
+            // Salto al siguiente proxy sin mostrar alerta al usuario
             fetchM3UWithProxy(url, proxyIndex + 1);
         });
 }
@@ -192,11 +203,7 @@ function playChannel(ch) {
 
     if (Hls.isSupported() && ch.url.includes(".m3u8")) {
         if (hlsPlayer) hlsPlayer.destroy();
-        hlsPlayer = new Hls({
-            xhrSetup: function (xhr, url) {
-                // Cross-origin fallback tuning
-            }
-        });
+        hlsPlayer = new Hls();
         hlsPlayer.loadSource(ch.url);
         hlsPlayer.attachMedia(player);
         hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function () {
