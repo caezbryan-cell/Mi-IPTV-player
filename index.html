@@ -133,9 +133,9 @@
             <h2>Cargar Lista IPTV</h2>
 
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('xtream-tab')">Xtream Codes</button>
-                <button class="tab-btn" onclick="switchTab('url-tab')">URL M3U</button>
-                <button class="tab-btn" onclick="switchTab('file-tab')">Archivo Local (.m3u)</button>
+                <button class="tab-btn active" id="btn-tab-xtream">Xtream Codes</button>
+                <button class="tab-btn" id="btn-tab-url">URL M3U</button>
+                <button class="tab-btn" id="btn-tab-file">Archivo Local (.m3u)</button>
             </div>
 
             <!-- Tab 1: Xtream Codes -->
@@ -170,7 +170,7 @@
 
             <!-- Tab 3: Archivo Local -->
             <div id="file-tab" class="tab-content">
-                <div class="file-upload-box" onclick="document.getElementById('m3u-file-input').click()">
+                <div class="file-upload-box" id="file-upload-trigger">
                     <i class="fa-solid fa-file-arrow-up"></i>
                     <p style="font-size:13px; color:#fff;">Toca aquí para seleccionar tu archivo <b>.m3u</b></p>
                     <input type="file" id="m3u-file-input" accept=".m3u,.m3u8,.txt" style="display:none;">
@@ -181,14 +181,6 @@
 
     <script src="app.js"></script>
     <script>
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-        }
-
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", function () {
                 navigator.serviceWorker.register("sw.js").catch(err => console.log("SW Error:", err));
