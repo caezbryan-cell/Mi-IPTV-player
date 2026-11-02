@@ -1,0 +1,21 @@
+{
+  "name": "Mi IPTV Player",
+  "short_name": "IPTV Player",
+  "description": "Reproductor IPTV ligero con categorías y scroll infinito",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#00A8FF",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
