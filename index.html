@@ -2,93 +2,124 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi IPTV Player - PWA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mi IPTV FREE</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00A8FF">
+    <meta name="theme-color" content="#0d0f17">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #0d0e12; color: #e1e4ed; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        
-        /* Header Bar */
-        header { height: 50px; background: #161820; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid #232733; }
-        header h1 { font-size: 18px; color: #00A8FF; text-transform: uppercase; letter-spacing: 1px; }
-        header .actions { display: flex; gap: 10px; }
-        header button { background: #0059B2; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-
-        /* Main Container */
-        #app { display: flex; flex: 1; height: calc(100vh - 50px); overflow: hidden; }
-        
-        /* Panels */
-        .sidebar { background: #12141c; border-right: 1px solid #202430; display: flex; flex-direction: column; }
-        #cat-panel { width: 220px; }
-        #chan-panel { width: 280px; }
-        
-        .panel-header { padding: 10px; border-bottom: 1px solid #202430; }
-        .panel-header input { width: 100%; padding: 6px 10px; background: #090a0e; border: 1px solid #2a2f40; color: #fff; border-radius: 4px; font-size: 12px; }
-        
-        .nav-list { list-style: none; overflow-y: auto; flex: 1; }
-        .nav-list li { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #1a1d28; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .nav-list li:hover { background: #1c202e; }
-        .nav-list li.active { background: #0059B2; color: #fff; font-weight: bold; border-left: 4px solid #00A8FF; }
-
-        /* Main Video Screen */
-        #main-viewport { flex: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
-        video { width: 100%; height: 100%; background: #000; }
-        
-        #overlay-info { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.75); padding: 8px 15px; border-radius: 5px; font-size: 14px; color: #fff; pointer-events: none; }
-        
-        /* Responsive Layout for Mobile */
-        @media (max-width: 768px) {
-            #app { flex-direction: column; }
-            .sidebar { width: 100% !important; height: 180px; }
-            #main-viewport { height: calc(100vh - 410px); }
+        :root {
+            --bg-main: #0b0d14;
+            --bg-card: #151824;
+            --bg-panel: #1a1e2e;
+            --accent: #00d2ff;
+            --accent-gradient: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%);
+            --text-main: #f0f3f9;
+            --text-muted: #8a94a6;
+            --danger: #ff4757;
+            --radius-lg: 16px;
+            --radius-md: 10px;
         }
 
-        /* Modal */
-        #modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 999; }
-        .modal-body { background: #191c26; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; text-align: center; border: 1px solid #2e3447; }
-        .modal-body input { width: 100%; padding: 10px; margin: 15px 0; background: #0d0e12; border: 1px solid #363d54; color: #fff; border-radius: 4px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-main); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        header { height: 60px; background: rgba(21, 24, 36, 0.95); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 100; }
+        .logo-container { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 36px; height: 36px; background: var(--accent-gradient); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,210,255,0.3); }
+        .logo-text { font-size: 18px; font-weight: 800; background: linear-gradient(90deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px; }
+
+        .search-box { position: relative; flex: 1; max-width: 320px; margin: 0 15px; }
+        .search-box input { width: 100%; padding: 8px 12px 8px 36px; background: #0f111a; border: 1px solid #232838; border-radius: 20px; color: #fff; font-size: 13px; outline: none; transition: 0.3s; }
+        .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,210,255,0.2); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; }
+
+        .btn-action { background: #1c2030; color: #fff; border: 1px solid #2a3047; padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+        .btn-action:hover { background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 12px rgba(0,210,255,0.3); }
+
+        #main-layout { display: flex; flex: 1; height: calc(100vh - 60px); overflow: hidden; position: relative; }
+
+        #sidebar { width: 260px; background: var(--bg-card); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; z-index: 90; transition: transform 0.3s ease; }
+        .folder-header { padding: 15px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .folder-list { list-style: none; overflow-y: auto; flex: 1; padding: 10px; }
+        .folder-item { padding: 12px 14px; margin-bottom: 4px; border-radius: var(--radius-md); font-size: 13px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+        .folder-item i { font-size: 14px; color: var(--accent); }
+        .folder-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .folder-item.active { background: var(--accent-gradient); color: #fff; font-weight: 600; box-shadow: 0 4px 15px rgba(0,114,255,0.3); }
+        .folder-item.active i { color: #fff; }
+
+        #content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-main); }
+        #video-container { width: 100%; height: 40vh; max-height: 400px; background: #000; position: relative; display: none; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        .video-overlay { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .close-video { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+
+        #grid-container { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; }
+        .channel-card { background: var(--bg-card); border-radius: var(--radius-md); overflow: hidden; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: 0.25s; position: relative; display: flex; flex-direction: column; }
+        .channel-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 6px 20px rgba(0,210,255,0.2); }
+        .poster-wrapper { width: 100%; aspect-ratio: 16/9; background: #0d0f17; display: flex; align-items: center; justify-content: justify; padding: 8px; position: relative; }
+        .poster-img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
+        .channel-info { padding: 8px; background: rgba(21, 24, 36, 0.9); flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .channel-name { font-size: 11px; font-weight: 600; color: var(--text-main); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 15px; }
+        .modal-card { background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-lg); padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+        .modal-card h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .modal-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+        .modal-card input { width: 100%; padding: 12px 14px; background: #0e1017; border: 1px solid #282e42; border-radius: var(--radius-md); color: #fff; font-size: 13px; margin-bottom: 15px; outline: none; }
+        .modal-card input:focus { border-color: var(--accent); }
+        .btn-submit { width: 100%; padding: 12px; background: var(--accent-gradient); color: #fff; border: none; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,114,255,0.4); }
+
+        .mobile-toggle { display: none; }
+        @media (max-width: 768px) {
+            .mobile-toggle { display: flex; }
+            #sidebar { position: absolute; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
+            #sidebar.open { transform: translateX(0); }
+            #grid-container { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; padding: 10px; }
+            .search-box { max-width: 180px; margin: 0 8px; }
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>IPTV Player PWA</h1>
-        <div class="actions">
-            <button id="btn-change-url">Cambiar M3U</button>
-            <button id="btn-install" style="display:none; background:#00a859;">Instalar App</button>
+        <div class="logo-container">
+            <button class="btn-action mobile-toggle" id="btn-menu"><i class="fa-solid fa-bars"></i></button>
+            <div class="logo-icon"><i class="fa-solid fa-play" style="color:#fff; font-size:14px;"></i></div>
+            <span class="logo-text">Mi IPTV FREE</span>
         </div>
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="global-search" placeholder="Buscar canal...">
+        </div>
+        <button class="btn-action" id="btn-change-m3u"><i class="fa-solid fa-link"></i></button>
     </header>
 
-    <div id="app">
-        <div class="sidebar" id="cat-panel">
-            <div class="panel-header">
-                <input type="text" id="cat-search" placeholder="Buscar categoría...">
-            </div>
-            <ul id="cat-list" class="nav-list"></ul>
-        </div>
+    <div id="main-layout">
+        <aside id="sidebar">
+            <div class="folder-header">Categorías</div>
+            <ul class="folder-list" id="folder-list"></ul>
+        </aside>
 
-        <div class="sidebar" id="chan-panel">
-            <div class="panel-header">
-                <input type="text" id="chan-search" placeholder="Buscar canal...">
+        <main id="content-area">
+            <div id="video-container">
+                <video id="videoPlayer" controls></video>
+                <div class="video-overlay"><i class="fa-solid fa-tv"></i> <span id="current-channel">Reproduciendo</span></div>
+                <button class="close-video" id="btn-close-video"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <ul id="chan-list" class="nav-list"></ul>
-        </div>
-
-        <div id="main-viewport">
-            <video id="videoPlayer" controls autoplay></video>
-            <div id="overlay-info"><span id="chan-title">Selecciona un canal</span></div>
-        </div>
+            <div id="grid-container"></div>
+        </main>
     </div>
 
-    <div id="modal">
-        <div class="modal-body">
-            <h3 style="color:#00A8FF;">Cargar Lista M3U</h3>
-            <input type="text" id="m3u-url" value="https://iptv-org.github.io/iptv/index.m3u" placeholder="https://tu-servidor.com/lista.m3u">
-            <button id="btn-load" style="padding:10px 20px; background:#0059B2; color:#fff; border:none; border-radius:4px; cursor:pointer;">Cargar Canales</button>
+    <div class="modal-bg" id="modal">
+        <div class="modal-card">
+            <h2>Cargar Lista IPTV</h2>
+            <p>Introduce tu enlace M3U público o privado</p>
+            <input type="text" id="m3u-url" value="https://iptv-org.github.io/iptv/index.m3u" placeholder="http://servidor.com/get.php?username=...">
+            <button class="btn-submit" id="btn-load">Cargar Lista</button>
         </div>
     </div>
 
@@ -96,9 +127,7 @@
     <script>
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", function () {
-                navigator.serviceWorker.register("sw.js")
-                    .then(reg => console.log("SW registrado:", reg.scope))
-                    .catch(err => console.log("SW error:", err));
+                navigator.serviceWorker.register("sw.js").catch(err => console.log("SW Error:", err));
             });
         }
     </script>

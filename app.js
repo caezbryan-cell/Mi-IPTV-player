@@ -1,23 +1,29 @@
 var allChannels = [];
-var categories = [];
-var filteredChannels = [];
-var activeCat = "TODOS";
-var player = null;
+var categories = {};
+var activeCategory = "TODOS";
+var hlsPlayer = null;
+
+const CORS_PROXIES = [
+    "",
+    "https://api.allorigins.win/raw?url=",
+    "https://corsproxy.io/?"
+];
 
 document.addEventListener("DOMContentLoaded", function () {
-    player = document.getElementById("videoPlayer");
     var modal = document.getElementById("modal");
     var m3uInput = document.getElementById("m3u-url");
     var loadBtn = document.getElementById("btn-load");
-    var changeBtn = document.getElementById("btn-change-url");
-    var catSearch = document.getElementById("cat-search");
-    var chanSearch = document.getElementById("chan-search");
+    var changeBtn = document.getElementById("btn-change-m3u");
+    var searchInput = document.getElementById("global-search");
+    var menuBtn = document.getElementById("btn-menu");
+    var sidebar = document.getElementById("sidebar");
+    var closeVideoBtn = document.getElementById("btn-close-video");
 
     var savedUrl = localStorage.getItem("iptv_m3u_url");
     if (savedUrl) {
         m3uInput.value = savedUrl;
         modal.style.display = "none";
-        fetchM3U(savedUrl);
+        fetchM3UWithProxy(savedUrl, 0);
     }
 
     loadBtn.addEventListener("click", function () {
@@ -25,7 +31,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (url) {
             localStorage.setItem("iptv_m3u_url", url);
             modal.style.display = "none";
-            fetchM3U(url);
+            fetchM3UWithProxy(url, 0);
         }
     });
 
@@ -33,108 +39,171 @@ document.addEventListener("DOMContentLoaded", function () {
         modal.style.display = "flex";
     });
 
-    catSearch.addEventListener("input", function () {
-        renderCategories(this.value.toLowerCase());
+    searchInput.addEventListener("input", function () {
+        renderGrid(this.value.toLowerCase());
     });
 
-    chanSearch.addEventListener("input", function () {
-        renderChannels(this.value.toLowerCase());
+    menuBtn.addEventListener("click", function () {
+        sidebar.classList.toggle("open");
+    });
+
+    closeVideoBtn.addEventListener("click", function () {
+        var videoContainer = document.getElementById("video-container");
+        var player = document.getElementById("videoPlayer");
+        videoContainer.style.display = "none";
+        player.pause();
+        if (hlsPlayer) {
+            hlsPlayer.destroy();
+            hlsPlayer = null;
+        }
     });
 });
 
-function fetchM3U(url) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && (xhr.status === 200 || xhr.status === 0)) {
-            parseM3U(xhr.responseText);
-        }
-    };
-    xhr.send();
+function fetchM3UWithProxy(url, proxyIndex) {
+    if (proxyIndex >= CORS_PROXIES.length) {
+        alert("Error: No se pudo obtener la lista IPTV. Verifica que la URL esté activa.");
+        return;
+    }
+
+    var targetUrl = CORS_PROXIES[proxyIndex] ? CORS_PROXIES[proxyIndex] + encodeURIComponent(url) : url;
+    
+    fetch(targetUrl)
+        .then(response => {
+            if (!response.ok) throw new Error("HTTP error " + response.status);
+            return response.text();
+        })
+        .then(data => {
+            parseM3U(data);
+        })
+        .catch(err => {
+            console.warn("Proxy index " + proxyIndex + " falló. Intentando el siguiente...", err);
+            fetchM3UWithProxy(url, proxyIndex + 1);
+        });
 }
 
 function parseM3U(data) {
     allChannels = [];
-    var catMap = { "TODOS": true };
+    categories = { "TODOS": [] };
+
     var lines = data.split("\n");
-    var currentName = "", currentGroup = "GENERAL";
+    var currentChannel = {};
 
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (line.indexOf("#EXTINF:") === 0) {
-            var parts = line.split(",");
-            currentName = parts[parts.length - 1].trim();
-            var match = line.match(/group-title="([^"]+)"/);
-            currentGroup = (match && match[1]) ? match[1].trim() : "GENERAL";
-            catMap[currentGroup] = true;
+            var nameMatch = line.match(/,(.+)$/);
+            var logoMatch = line.match(/tvg-logo="([^"]+)"/);
+            var groupMatch = line.match(/group-title="([^"]+)"/);
+
+            currentChannel = {
+                name: nameMatch ? nameMatch[1].trim() : "Canal Sin Nombre",
+                logo: logoMatch ? logoMatch[1] : "",
+                group: groupMatch ? groupMatch[1].trim() : "GENERAL"
+            };
         } else if (line.length > 0 && line.indexOf("#") !== 0) {
-            allChannels.push({ name: currentName || ("Canal " + (allChannels.length + 1)), group: currentGroup, url: line });
-            currentName = ""; currentGroup = "GENERAL";
+            currentChannel.url = line;
+            allChannels.push(currentChannel);
+
+            if (!categories[currentChannel.group]) {
+                categories[currentChannel.group] = [];
+            }
+            categories[currentChannel.group].push(currentChannel);
+            categories["TODOS"].push(currentChannel);
+
+            currentChannel = {};
         }
     }
 
-    categories = Object.keys(catMap);
-    renderCategories("");
-    filterCategory("TODOS");
+    renderFolders();
+    selectCategory("TODOS");
 }
 
-function renderCategories(filterText) {
-    var ul = document.getElementById("cat-list");
-    ul.innerHTML = "";
-    for (var i = 0; i < categories.length; i++) {
-        if (!filterText || categories[i].toLowerCase().indexOf(filterText) !== -1) {
-            var li = document.createElement("li");
-            li.innerText = categories[i];
-            if (categories[i] === activeCat) li.className = "active";
-            li.onclick = (function (cat) {
-                return function () {
-                    activeCat = cat;
-                    renderCategories(document.getElementById("cat-search").value.toLowerCase());
-                    filterCategory(cat);
-                };
-            })(categories[i]);
-            ul.appendChild(li);
-        }
-    }
+function renderFolders() {
+    var folderList = document.getElementById("folder-list");
+    folderList.innerHTML = "";
+
+    var groups = Object.keys(categories);
+    groups.forEach(function (group) {
+        var li = document.createElement("li");
+        li.className = "folder-item" + (group === activeCategory ? " active" : "");
+        li.innerHTML = '<i class="fa-solid fa-folder"></i> <span>' + group + '</span>';
+        li.onclick = function () {
+            selectCategory(group);
+            document.getElementById("sidebar").classList.remove("open");
+        };
+        folderList.appendChild(li);
+    });
 }
 
-function filterCategory(catName) {
-    activeCat = catName;
-    filteredChannels = [];
-    for (var i = 0; i < allChannels.length; i++) {
-        if (catName === "TODOS" || allChannels[i].group === catName) {
-            filteredChannels.push(allChannels[i]);
-        }
-    }
-    renderChannels("");
+function selectCategory(catName) {
+    activeCategory = catName;
+    renderFolders();
+    renderGrid("");
 }
 
-function renderChannels(filterText) {
-    var ul = document.getElementById("chan-list");
-    ul.innerHTML = "";
+function renderGrid(searchTerm) {
+    var container = document.getElementById("grid-container");
+    container.innerHTML = "";
+
+    var channelList = categories[activeCategory] || [];
     var fragment = document.createDocumentFragment();
-    var count = 0;
 
-    for (var i = 0; i < filteredChannels.length; i++) {
-        var ch = filteredChannels[i];
-        if (!filterText || ch.name.toLowerCase().indexOf(filterText) !== -1) {
-            var li = document.createElement("li");
-            li.innerText = (i + 1) + ". " + ch.name;
-            li.onclick = (function (channel) {
+    var count = 0;
+    for (var i = 0; i < channelList.length; i++) {
+        var ch = channelList[i];
+        if (!searchTerm || ch.name.toLowerCase().indexOf(searchTerm) !== -1) {
+            var card = document.createElement("div");
+            card.className = "channel-card";
+            
+            var defaultLogo = 'https://via.placeholder.com/300x169/151824/00d2ff?text=' + encodeURIComponent(ch.name);
+            var logoUrl = ch.logo ? ch.logo : defaultLogo;
+
+            card.innerHTML = `
+                <div class="poster-wrapper">
+                    <img class="poster-img" src="${logoUrl}" onerror="this.src='${defaultLogo}'" alt="${ch.name}">
+                </div>
+                <div class="channel-info">
+                    <div class="channel-name">${ch.name}</div>
+                </div>
+            `;
+
+            card.onclick = (function (channel) {
                 return function () {
                     playChannel(channel);
                 };
             })(ch);
-            fragment.appendChild(li);
+
+            fragment.appendChild(card);
             count++;
-            if (count >= 100) break; // Limit visible items for smooth performance
+            if (count >= 200) break;
         }
     }
-    ul.appendChild(fragment);
+
+    container.appendChild(fragment);
 }
 
 function playChannel(ch) {
-    document.getElementById("chan-title").innerText = ch.name;
-    player.src = ch.url;
-    player.play();
+    var videoContainer = document.getElementById("video-container");
+    var player = document.getElementById("videoPlayer");
+    var title = document.getElementById("current-channel");
+
+    videoContainer.style.display = "block";
+    title.innerText = ch.name;
+
+    if (Hls.isSupported() && ch.url.includes(".m3u8")) {
+        if (hlsPlayer) hlsPlayer.destroy();
+        hlsPlayer = new Hls({
+            xhrSetup: function (xhr, url) {
+                // Cross-origin fallback tuning
+            }
+        });
+        hlsPlayer.loadSource(ch.url);
+        hlsPlayer.attachMedia(player);
+        hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function () {
+            player.play();
+        });
+    } else {
+        player.src = ch.url;
+        player.play();
+    }
 }

@@ -1,11 +1,11 @@
 {
-  "name": "Mi IPTV Player",
-  "short_name": "IPTV Player",
-  "description": "Reproductor IPTV ligero con categorías y scroll infinito",
+  "name": "Mi IPTV FREE",
+  "short_name": "IPTV FREE",
+  "description": "Reproductor IPTV con carpetas, portadas y soporte universal",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#00A8FF",
+  "background_color": "#0b0d14",
+  "theme_color": "#00d2ff",
   "icons": [
     {
       "src": "icon-192.png",
