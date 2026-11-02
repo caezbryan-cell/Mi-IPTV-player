@@ -3,16 +3,6 @@ var categories = {};
 var activeCategory = "TODOS";
 var hlsPlayer = null;
 
-// Lista ampliada de Proxies CORS silenciosos con reintentos automáticos
-const CORS_PROXIES = [
-    "", // Intento directo primero (HTTPS/CORS permitido)
-    "https://api.allorigins.win/raw?url=",
-    "https://corsproxy.io/?",
-    "https://proxy.cors.sh/",
-    "https://thingproxy.freeboard.io/fetch/",
-    "https://api.codetabs.com/v1/proxy?quest="
-];
-
 document.addEventListener("DOMContentLoaded", function () {
     var modal = document.getElementById("modal");
     var m3uInput = document.getElementById("m3u-url");
@@ -27,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (savedUrl) {
         m3uInput.value = savedUrl;
         modal.style.display = "none";
-        fetchM3UWithProxy(savedUrl, 0);
+        loadM3U(savedUrl);
     }
 
     loadBtn.addEventListener("click", function () {
@@ -35,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (url) {
             localStorage.setItem("iptv_m3u_url", url);
             modal.style.display = "none";
-            fetchM3UWithProxy(url, 0);
+            loadM3U(url);
         }
     });
 
@@ -63,32 +53,39 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-// Función con respaldo silencioso (sin alertas molestas al fallar un proxy individual)
-function fetchM3UWithProxy(url, proxyIndex) {
-    if (proxyIndex >= CORS_PROXIES.length) {
-        console.error("Todos los proxies de respaldo fallaron.");
-        alert("No se pudo obtener la lista IPTV. Verifica que tu enlace esté activo o prueba cambiar de http:// a https://.");
-        return;
-    }
-
-    var proxyPrefix = CORS_PROXIES[proxyIndex];
-    var targetUrl = proxyPrefix ? proxyPrefix + encodeURIComponent(url) : url;
-
-    fetch(targetUrl)
+// Función de carga con compatibilidad directa y respaldo por proxy si es necesario
+function loadM3U(url) {
+    // Intento 1: Carga directa (ideal para listas privadas y de pago que permiten acceso remoto)
+    fetch(url)
         .then(function (response) {
-            if (!response.ok) throw new Error("HTTP Status " + response.status);
+            if (!response.ok) throw new Error("Error HTTP directo");
             return response.text();
         })
         .then(function (data) {
-            if (!data || data.trim().length === 0) {
-                throw new Error("Respuesta vacía del proxy");
+            if (!data || data.indexOf("#EXTINF") === -1) {
+                throw new Error("Formato M3U no válido en respuesta directa");
             }
             parseM3U(data);
         })
         .catch(function (err) {
-            console.warn("Proxy (" + (proxyPrefix || "Directo") + ") falló de forma silenciosa. Reintentando con siguiente proxy...", err);
-            // Salto al siguiente proxy sin mostrar alerta al usuario
-            fetchM3UWithProxy(url, proxyIndex + 1);
+            console.warn("Carga directa bloqueada o fallida. Intentando vía Proxy CORS...", err);
+            // Intento 2: Respaldo automático mediante proxy si la directa falla por seguridad del navegador
+            var proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+            return fetch(proxyUrl)
+                .then(function (res) {
+                    if (!res.ok) throw new Error("Error en Proxy");
+                    return res.text();
+                })
+                .then(function (proxyData) {
+                    if (!proxyData || proxyData.trim().length === 0) {
+                        throw new Error("Respuesta vacía del proxy");
+                    }
+                    parseM3U(proxyData);
+                })
+                .catch(function (finalErr) {
+                    console.error("Todos los métodos de carga fallaron:", finalErr);
+                    alert("No se pudo obtener la lista IPTV. Comprueba que el enlace de tu proveedor sea correcto y esté activo.");
+                });
         });
 }
 
